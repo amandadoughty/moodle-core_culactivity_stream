@@ -1,0 +1,162 @@
+diff --git a/mod/assign/locallib.php b/mod/assign/locallib.php
+index cc31ec6..4e8ce8b 100644
+--- a/mod/assign/locallib.php
++++ b/mod/assign/locallib.php
+@@ -4850,6 +4850,7 @@ class assign {
+         $eventdata->notification    = 1;
+         $eventdata->contexturl      = $info->url;
+         $eventdata->contexturlname  = $info->assignment;
++        $eventdata->courseid        = $course->id;
+ 
+         message_send($eventdata);
+     }
+diff --git a/mod/feedback/lib.php b/mod/feedback/lib.php
+index 68ab379..e3137b2 100644
+--- a/mod/feedback/lib.php
++++ b/mod/feedback/lib.php
+@@ -2971,7 +2971,10 @@ function feedback_send_email($cm, $feedback, $course, $userid) {
+                 $eventdata->fullmessage      = $posttext;
+                 $eventdata->fullmessageformat = FORMAT_PLAIN;
+                 $eventdata->fullmessagehtml  = $posthtml;
+-                $eventdata->smallmessage     = '';
++                $eventdata->smallmessage     = $postsubject;
++                $eventdata->courseid         = $course->id;
++                $eventdata->contexturl       = $info->url;
++                $eventdata->contexturlname   = $info->feedback;
+                 message_send($eventdata);
+             } else {
+                 $eventdata = new stdClass();
+@@ -2983,7 +2986,10 @@ function feedback_send_email($cm, $feedback, $course, $userid) {
+                 $eventdata->fullmessage      = $posttext;
+                 $eventdata->fullmessageformat = FORMAT_PLAIN;
+                 $eventdata->fullmessagehtml  = $posthtml;
+-                $eventdata->smallmessage     = '';
++                $eventdata->smallmessage     = $postsubject;
++                $eventdata->courseid         = $course->id;
++                $eventdata->contexturl       = $info->url;
++                $eventdata->contexturlname   = $info->feedback;
+                 message_send($eventdata);
+             }
+         }
+@@ -3040,7 +3046,10 @@ function feedback_send_email_anonym($cm, $feedback, $course) {
+             $eventdata->fullmessage      = $posttext;
+             $eventdata->fullmessageformat = FORMAT_PLAIN;
+             $eventdata->fullmessagehtml  = $posthtml;
+-            $eventdata->smallmessage     = '';
++            $eventdata->smallmessage     = $postsubject;
++            $eventdata->courseid         = $course->id;
++            $eventdata->contexturl       = $info->url;
++            $eventdata->contexturlname   = $info->feedback;
+             message_send($eventdata);
+         }
+     }
+diff --git a/mod/feedback/show_nonrespondents.php b/mod/feedback/show_nonrespondents.php
+index 1ed0250..ba76e20 100644
+--- a/mod/feedback/show_nonrespondents.php
++++ b/mod/feedback/show_nonrespondents.php
+@@ -106,7 +106,10 @@ if ($action == 'sendmessage' AND has_capability('moodle/course:bulkmessaging', $
+             $eventdata->fullmessage      = html_to_text($htmlmessage);
+             $eventdata->fullmessageformat = FORMAT_PLAIN;
+             $eventdata->fullmessagehtml  = $htmlmessage;
+-            $eventdata->smallmessage     = '';
++            $eventdata->smallmessage     = $subject;
++            $eventdata->courseid         = $course->id;
++            $eventdata->contexturl       = $link3;
++            $eventdata->contexturlname   = $feedback->name;
+             $good = $good && message_send($eventdata);
+         }
+         if (!empty($good)) {
+diff --git a/mod/forum/lib.php b/mod/forum/lib.php
+index ef99acc..c7673d6 100644
+--- a/mod/forum/lib.php
++++ b/mod/forum/lib.php
+@@ -806,6 +806,7 @@ function forum_cron() {
+                 $contexturl = new moodle_url('/mod/forum/discuss.php', array('d' => $discussion->id), 'p' . $post->id);
+                 $eventdata->contexturl = $contexturl->out();
+                 $eventdata->contexturlname = $discussion->name;
++                $eventdata->courseid = $course->id;
+ 
+                 $mailresult = message_send($eventdata);
+                 if (!$mailresult) {
+diff --git a/mod/lesson/essay.php b/mod/lesson/essay.php
+index a05e46f..efa4f78 100644
+--- a/mod/lesson/essay.php
++++ b/mod/lesson/essay.php
+@@ -231,6 +231,11 @@ switch ($mode) {
+                 $a->comment  = s($essayinfo->response);
+ 
+                 // Fetch message HTML and plain text formats
++                $b = new stdClass();
++                $b->essay = format_string($pages[$attempt->pageid]->title,true);
++                $b->lesson = $lesson->properties()->name;
++                $b->course = $course->idnumber? $course->idnumber : $course->fullname;
++                $smallmessage  = get_string('essayemailmessage3', 'lesson', $b);
+                 $message  = get_string('essayemailmessage2', 'lesson', $a);
+                 $plaintext = format_text_email($message, FORMAT_HTML);
+ 
+@@ -245,7 +250,8 @@ switch ($mode) {
+                 $eventdata->fullmessage      = $plaintext;
+                 $eventdata->fullmessageformat = FORMAT_PLAIN;
+                 $eventdata->fullmessagehtml  = $message;
+-                $eventdata->smallmessage     = '';
++                $eventdata->smallmessage     = $smallmessage;
++                $eventdata->contexturl       = $CFG->wwwroot . '/grade/report/user/index.php?id=' . $course->id;
+ 
+                 // Required for messaging framework
+                 $eventdata->component = 'mod_lesson';
+diff --git a/mod/lesson/lang/en/lesson.php b/mod/lesson/lang/en/lesson.php
+index b22c9b3..1b91054 100644
+--- a/mod/lesson/lang/en/lesson.php
++++ b/mod/lesson/lang/en/lesson.php
+@@ -169,6 +169,7 @@ $string['eolstudentoutoftimenoanswers'] = 'You did not answer any questions.  Yo
+ $string['essay'] = 'Essay';
+ $string['essayemailmessage'] = '<p>Essay prompt:<blockquote>{$a->question}</blockquote></p><p>Your response:<blockquote><em>{$a->response}</em></blockquote></p><p>{$a->teacher}\'s comments:<blockquote><em>{$a->comment}</em></blockquote></p><p>You have received {$a->earned} out of {$a->outof} for this essay question.</p><p>Your grade for the lesson has been changed to {$a->newgrade}&#37;.</p>';
+ $string['essayemailmessage2'] = '<p>Essay prompt:<blockquote>{$a->question}</blockquote></p><p>Your response:<blockquote><em>{$a->response}</em></blockquote></p><p>Grader\'s comments:<blockquote><em>{$a->comment}</em></blockquote></p><p>You have received {$a->earned} out of {$a->outof} for this essay question.</p><p>Your grade for the lesson has been changed to {$a->newgrade}&#37;.</p>';
++$string['essayemailmessage3'] = 'Your submission to {$a->lesson} essay {$a->essay} in {$a->course} has been graded.';
+ $string['essayemailsubject'] = 'Your grade for {$a} question';
+ $string['essays'] = 'Essays';
+ $string['essayscore'] = 'Essay score';
+diff --git a/mod/quiz/locallib.php b/mod/quiz/locallib.php
+index 8ea4888..26f3fc6 100644
+--- a/mod/quiz/locallib.php
++++ b/mod/quiz/locallib.php
+@@ -1410,6 +1410,7 @@ function quiz_send_confirmation($recipient, $a) {
+     $eventdata->smallmessage      = get_string('emailconfirmsmall', 'quiz', $a);
+     $eventdata->contexturl        = $a->quizurl;
+     $eventdata->contexturlname    = $a->quizname;
++    $eventdata->courseid          = $a->courseid;
+ 
+     // ... and send it.
+     return message_send($eventdata);
+@@ -1446,6 +1447,7 @@ function quiz_send_notification($recipient, $submitter, $a) {
+     $eventdata->smallmessage      = get_string('emailnotifysmall', 'quiz', $a);
+     $eventdata->contexturl        = $a->quizreviewurl;
+     $eventdata->contexturlname    = $a->quizname;
++    $eventdata->courseid          = $a->courseid;
+ 
+     // ... and send it.
+     return message_send($eventdata);
+@@ -1503,6 +1505,7 @@ function quiz_send_notification_messages($course, $quiz, $attempt, $context, $cm
+ 
+     $a = new stdClass();
+     // Course info.
++    $a->courseid        = $course->id;
+     $a->coursename      = $course->fullname;
+     $a->courseshortname = $course->shortname;
+     // Quiz info.
+@@ -1577,6 +1580,7 @@ function quiz_send_overdue_message($attemptobj) {
+ 
+     $a = new stdClass();
+     // Course info.
++    $a->courseid           = $attemptobj->get_course()->id;
+     $a->coursename         = format_string($attemptobj->get_course()->fullname);
+     $a->courseshortname    = format_string($attemptobj->get_course()->shortname);
+     // Quiz info.
+@@ -1609,6 +1613,7 @@ function quiz_send_overdue_message($attemptobj) {
+     $eventdata->smallmessage      = get_string('emailoverduesmall', 'quiz', $a);
+     $eventdata->contexturl        = $a->quizurl;
+     $eventdata->contexturlname    = $a->quizname;
++    $eventdata->courseid          = $a->courseid;
+ 
+     // Send the message.
+     return message_send($eventdata);
